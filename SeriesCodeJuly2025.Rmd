@@ -1,0 +1,759 @@
+---
+title: "Character Conversational Network (Series)"
+author: "Alyssa April Dellow"
+date: "21 July 2025"
+output: html_document
+---
+  
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+### Load Libraries
+
+```{r libraries, message = FALSE, warning = FALSE}
+library(readxl) # to import the data in Excel to R
+library(igraph) # for network analysis
+library(dplyr) # to use pipe operator
+library(ggplot2)
+library(sna)
+library(tidyr)
+```
+### Set Gender Shape, Race Colour and Edge Colour (Relationship) for the Series
+
+```{r series details, echo = FALSE}
+details <- read_excel("C:/Users/User/Desktop/PhD Year 1/Upin Ipin/Series Stats Season 1 and Season 2.xlsx",
+                             sheet = 4) # load Excel sheet of characters, gender and race into R
+
+df_details <- data.frame(details)
+
+colour <- c("tan1", "lightblue", "plum", "pink", "grey", "yellow") # six different colours for Malay, Chinese, Indian, Sikh, Unknown and Animal
+
+relay_details <- read_excel("C:/Users/User/Desktop/PhD Year 1/Upin Ipin/Series Stats Season 1 and Season 2.xlsx", sheet = 3) # load Excel sheet of nodes and relationships
+
+df_relay <- data.frame(relay_details)
+
+relay <- c("wheat4", "seagreen3", "red") # three different colours for good/neutral relationship, family and bad relationship
+
+# set the colour for each node according to their race
+race_levels <- unique(df_details$Race)
+race_colour <- setNames(colour[seq_along(race_levels)], race_levels)
+
+# set the shape for each node according to their gender
+gender_levels <- unique(df_details$Gender)
+gender_shape <- setNames(c("circle", "square", "triangle")[seq_along(gender_levels)], gender_levels)
+
+# set the colour for each edge according to the type of relationship between the pair of nodes
+relationship_levels <- unique(df_relay$Relationship)
+relay_colour <- setNames(relay[seq_along(relationship_levels)], relationship_levels)
+```
+
+### Creating the Directed Network for Series and Plotting it
+
+```{r network, message = FALSE, warning = FALSE}
+
+# read edge list 
+edges_dir <- read_excel("C:/Users/User/Desktop/PhD Year 1/Upin Ipin/Series Stats Season 1 and Season 2.xlsx", sheet = "Final")
+  
+# read node details
+nodes <- read_excel("C:/Users/User/Desktop/PhD Year 1/Upin Ipin/Series Stats Season 1 and Season 2.xlsx", sheet = "Details")
+  
+# Create an igraph object
+series_net <- graph_from_data_frame(d = edges_dir, vertices = nodes, directed = TRUE)
+
+series_adj <- as.matrix(get.adjacency(series_net, attr = "Weight"))
+```
+
+### Plotting the Undirected Network
+
+```{r undirected network, echo = FALSE, fig.height = 20, fig.width = 20, out.width = "100%"}
+
+# read edge list 
+edges_dir <- read_excel("C:/Users/User/Desktop/PhD Year 1/Upin Ipin/Series Stats Season 1 and Season 2.xlsx", sheet = "Undirected")
+
+series_net_undirected <- graph_from_data_frame(d = edges_dir, vertices = nodes, directed = FALSE)
+
+series_adj_undirected <- as.matrix(get.adjacency(series_net_undirected))
+
+plot(series_net_undirected,
+     layout = layout_nicely(series_net_undirected),
+     vertex.size = 11,
+     vertex.color = race_colour[V(series_net_undirected)$Race],
+     vertex.shape = gender_shape[V(series_net_undirected)$Gender],
+     vertex.frame.color = "black",
+     vertex.label = V(series_net_undirected)$name,
+     vertex.label.cex = 1.7,
+     vertex.label.color = "black",
+     edge.color = relay_colour[E(series_net_undirected)$Relationship],
+     edge.width = 4,
+     edge.arrow.size = 1.5,
+     edge.curved = 0.3)
+```
+
+```{r series plot, echo = FALSE, fig.height = 20, fig.width = 20, out.width = "100%"}
+
+set.seed(10)
+
+# plot directed network
+plot(series_net, 
+     layout = layout_nicely(series_net),
+     vertex.size = 11, 
+     vertex.color = race_colour[V(series_net)$Race], 
+     vertex.shape = gender_shape[V(series_net)$Gender],
+     vertex.frame.color = "black", 
+     vertex.label = V(series_net)$name, 
+     vertex.label.cex = 1.7, 
+     vertex.label.color = "black", 
+     edge.color = relay_colour[E(series_net)$Relationship], 
+     edge.width = abs(E(series_net)$Weight)*0.6,
+     edge.arrow.size = 1.5,
+     edge.curved = 0.3)
+
+# add legend for node colours (Race)
+legend(x = 0.9, y = 1.1, legend = names(race_colour), 
+       col = race_colour, pch = 16, pt.cex = 4, cex = 1.9, bty = "n", title = "Race")
+
+# add legend for node shapes (Gender)
+legend(x = 0.9, y = 0.795, legend = c("Male", "Female"),
+       pch = c(16, 15, 17), pt.cex = 4, cex = 1.9, bty = "n", title = "Gender")
+
+# add legend for edge colours (Relationship)
+legend(x = 0.9, y = 0.58, legend = c("Family", "Good"), 
+       col = relay_colour, lty = 1, lwd = 8, cex = 1.9, bty = "n", title = "Relationship")
+```
+
+### Centrality Measures for Series (Directed and Weighted Degree Centrality)
+
+```{r centrality}
+
+# degree centrality (total weight in and out divided by sum of all weight multiply by 2)
+series_deg <- degree(series_adj, rescale = TRUE)
+names(series_deg) <- rownames(series_adj)  # Assign names (if rownames exist)
+deg_sorted_role <- sort(series_deg, decreasing = TRUE)  # Sort in decreasing order
+print(deg_sorted_role)
+
+```
+
+# Centralities for Undirected and Unweighted Network
+
+```{r centrality undirected and Unweighted}
+
+# degree centrality (total weight in and out divided by sum of all weight multiply by 2)
+series_deg <- degree(series_adj_undirected, gmode = "graph", rescale = TRUE)
+names(series_deg) <- rownames(series_adj)  # Assign names (if rownames exist)
+deg_sorted <- sort(series_deg, decreasing = TRUE)  # Sort in decreasing order
+print(deg_sorted)
+
+# eigenvector centrality
+series_eigen <- eigen_centrality(series_net_undirected)
+eigen_sorted <- sort(series_eigen$vector, decreasing = TRUE)
+print(eigen_sorted)
+
+# betweenness centrality 
+# invert the weight since weight is interpreted as distances
+series_btwn <- betweenness.estimate(series_net_undirected, directed = FALSE, cutoff = -1)
+btwn_sorted <- sort(series_btwn, decreasing = TRUE)
+print(btwn_sorted)
+
+# closeness centrality
+series_closeness <- closeness.estimate(series_net_undirected, mode = "all", cutoff = -1)
+closeness_sorted <- sort(series_closeness, decreasing = TRUE)
+print(closeness_sorted)
+```
+
+### Graph Details
+
+```{r deets}
+
+desc_series_net <- cbind(gsize(series_net), gsize(series_net_undirected),
+                    transitivity(series_net_undirected, type = "global"), # this is undirected and unweighted
+                    mean_distance(series_net, E(series_net)$Weight),
+                    mean_distance(series_net),
+                    mean_distance(series_net_undirected, directed = FALSE),
+                    edge_density(series_net_undirected))
+
+paste("Number of Edges Directed:", desc_series_net[1],
+      "Number of Edges Undirected:", desc_series_net[2],
+      "GCC Undirected and Unweighted:", desc_series_net[3], 
+      "Average Path Length Directed and Weighted:", desc_series_net[4],
+      "Average Path Length Directed and Unweighted:", desc_series_net[5],
+      "Average Path Length Undirected and Unweighted:", desc_series_net[6],
+      "Density:", desc_series_net[7])
+```
+
+### Community Detection
+
+```{r community detection, echo = FALSE, fig.height = 20, fig.width = 20, out.width = "100%"}
+
+# Walktrap
+wc <- cluster_walktrap(series_net, weights = E(series_net)$Weight)
+membership(wc) # obtain the membership of each node
+modularity(wc, weights = E(series_net)$Weight)
+
+set.seed(10)
+
+# export figure as PNG
+png(
+  filename = "Fig1(a).png",
+  width = 6.85, # 174 mm in inches
+  height = 7.5,   # less than 234 mm
+  units = "in",
+  res = 1200 # 1200dpi resolution
+)
+
+par(family = "Helvetica", mar = c(1, 1, 1, 1)) # set font and margins
+
+# plot directed network with community detection
+plot(wc, series_net, 
+     layout = layout_nicely(series_net),
+     vertex.size = 14, 
+     vertex.label.family = "Helvetica", # font
+     col = race_colour[V(series_net)$Race], 
+     vertex.shape = gender_shape[V(series_net)$Gender],
+     vertex.frame.color = "black", 
+     vertex.label = V(series_net)$name, 
+     vertex.label.cex = 0.8, 
+     vertex.label.color = "black", 
+     edge.color = relay_colour[E(series_net)$Relationship], 
+     edge.width = abs(E(series_net)$Weight)*0.4,
+     edge.arrow.size = 0.6,
+     edge.curved = 0.3)
+
+# add legend for node colours (Race)
+legend(x = 0.7, y = 1.1, legend = names(race_colour), 
+       col = race_colour, pch = 16, pt.cex = 1.8, cex = 0.8, bty = "n", title = "Race")
+
+# add legend for node shapes (Gender)
+legend(x = 0.7, y = 0.7, legend = c("Male", "Female"),
+       pch = c(16, 15, 17), pt.cex = 1.8, cex = 0.8, bty = "n", title = "Gender")
+
+# add legend for edge colours (Relationship)
+legend(x = 0.7, y = 0.4, legend = c("Family", "Good"), 
+       col = relay_colour, lty = 1, lwd = 3, cex = 0.8, bty = "n", title = "Relationship")
+
+dev.off()
+```
+
+### Major, Minor and Extra Role Classification based on Weighted and Directed Degree Centrality
+
+```{r major, minor, extra roles}
+
+# put the character names and their normalised degree values in a dataframe
+deg_names <- names(deg_sorted_role)
+names(deg_sorted_role) <- NULL
+deg_df <- data.frame(Name = deg_names, Degree = deg_sorted_role)
+
+# compute the average degree
+avg_deg <- mean(deg_df$Degree)
+
+# extras are those who have a degree value less than the average degree
+extra_role <- deg_df[deg_df$Degree < avg_deg, ]
+
+# major and minor roles
+maj_min <- deg_df[deg_df$Degree >= avg_deg, ]
+
+# find the biggest gap between major and minor nodes
+gaps <- abs(diff(maj_min$Degree))
+max_gap <- which.max(gaps)
+
+# classify the characters
+maj_min$Role <- "Minor"
+maj_min$Role[1:max_gap] <- "Major"
+extra_role$Role <- "Extra"
+
+# combine all the characters into a single df
+role_df <- rbind(maj_min, extra_role)
+role_df$Role <- factor(role_df$Role, levels = c("Major", "Minor", "Extra"))
+role_df$Name <- factor(role_df$Name, levels = role_df$Name)
+
+role_df_corr <- role_df # for use in correlation analysis section
+
+png("Fig2(a).png", width = 6.85, height = 6, units = "in", res = 1200, family = "Helvetica") # save png for submission
+
+# plot the classification of roles
+ggplot(role_df, aes(x = Name, y = Degree, color = Role, shape = Role, group = 1)) +
+  geom_line(size = 1) +  # line connecting the points
+  geom_point(size = 3) +  # dots of each character
+  geom_hline(yintercept = avg_deg, linetype = "dotted", color = "darkgrey", size = 1) +  # average degree centrality line
+  geom_vline(xintercept = max_gap + 0.5, linetype = "dotted", color = "darkgrey", size = 1) +  # largest gap line
+  annotate("text", x = length(role_df$Name)/2 + 2, y = avg_deg + 0.008, label = "Average Degree", color = "black", size = 4.2) +  # label for avg degree
+  annotate("text", x = max_gap + 1, y = max(role_df$Degree) - 0.05, label = "Largest Gap", color = "black", size = 4.2, angle = 270) +  # label for largest gap
+  scale_color_manual(values = c("green", "blue", "red")) +  # colours for Major, Minor, Extra
+  scale_shape_manual(values = c(16, 17, 15)) +  # shapes for Major, Minor, Extra
+  theme_minimal(base_family = "Helvetica") +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, size = 12),
+        axis.text.y = element_text(size = 12),
+        axis.title.x = element_text(size = 12),
+        axis.title.y = element_text(size = 12),
+        panel.grid = element_blank(),
+        panel.border = element_blank(),
+        axis.line = element_line(color = "black"),
+        legend.title = element_text(size = 12),
+        legend.text = element_text(size = 12)) +
+  labs(x = "Series Characters",
+       y = "Degree Centrality",
+       color = "Role",
+       shape = "Role") 
+
+dev.off()
+```
+
+### Role Classification (Unweighted and Undirected Degree)
+
+```{r major, minor, extra roles - degree undirected unweighted}
+
+# put the character names and their degree values in a dataframe
+deg_unw_und_names <- names(deg_sorted)
+names(deg_sorted) <- NULL
+deg_unw_und_df <- data.frame(Name = deg_unw_und_names, Degree = deg_sorted)
+
+# compute the average degree
+avg_deg_unw_und <- mean(deg_unw_und_df$Degree)
+
+# extras are those who have a degree value less than the average degree
+extra_role <- deg_unw_und_df[deg_unw_und_df$Degree < avg_deg_unw_und, ]
+
+# major and minor roles
+maj_min <- deg_unw_und_df[deg_unw_und_df$Degree >= avg_deg_unw_und, ]
+
+# find the biggest gap between major and minor nodes
+gaps <- abs(diff(maj_min$Degree))
+max_gap <- which.max(gaps)
+
+# classify the characters
+maj_min$Role <- "Minor"
+maj_min$Role[1:max_gap] <- "Major"
+extra_role$Role <- "Extra"
+
+# combine all the characters into a single df
+role_df <- rbind(maj_min, extra_role)
+role_df$Role <- factor(role_df$Role, levels = c("Major", "Minor", "Extra"))
+role_df$Name <- factor(role_df$Name, levels = role_df$Name)
+
+png("Fig7(a).png", width = 6.85, height = 6, units = "in", res = 1200, family = "Helvetica")
+
+# plot the classification of roles
+ggplot(role_df, aes(x = Name, y = Degree, color = Role, shape = Role, group = 1)) +
+  geom_line(size = 1) +  # line connecting the points
+  geom_point(size = 3) +  # dots of each character
+  geom_hline(yintercept = avg_deg_unw_und, linetype = "dotted", color = "darkgrey", size = 1) +  # average deg centrality line
+  geom_vline(xintercept = max_gap + 0.5, linetype = "dotted", color = "darkgrey", size = 1) +  # largest gap line
+  annotate("text", x = length(role_df$Name)/2 + 4.8, y = avg_deg_unw_und + 0.009, label = "Average Degree \n(Unweighted & Undirected)", color = "black", size = 4.2) +  # label for avg degree
+  annotate("text", x = max_gap + 0.9, y = max(role_df$Degree) - 0.01, label = "Largest Gap", color = "black", size = 4.2, angle = 270) +  # label for largest gap
+  scale_color_manual(values = c("green", "blue", "red")) +  # colours for Major, Minor, Extra
+  scale_shape_manual(values = c(16, 17, 15)) +
+  scale_y_continuous(limits = c(0, 0.15)) +
+  theme_minimal(base_family = "Helvetica") +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, size = 12),
+        axis.text.y = element_text(size = 12),
+        axis.title.x = element_text(size = 12),
+        axis.title.y = element_text(size = 12), 
+        panel.grid = element_blank(),
+        panel.border = element_blank(),
+        axis.line = element_line(color = "black"),
+        legend.title = element_text(size = 12),
+        legend.text = element_text(size = 12)) +
+  labs(x = "Series Characters",
+       y = "Degree Centrality (Unweighted & Undirected)",
+       color = "Role",
+       shape = "Role") 
+
+dev.off()
+```
+
+### Role Classification (Eigenvector)
+
+```{r major, minor, extra roles - eigenvector}
+
+# put the character names and their eigenvector values in a dataframe
+ev_names <- names(eigen_sorted)
+names(eigen_sorted) <- NULL
+ev_df <- data.frame(Name = ev_names, Eigenvector = eigen_sorted)
+
+# compute the average eigenvector
+avg_ev <- mean(ev_df$Eigenvector)
+
+# extras are those who have a ev value less than the average ev
+extra_role <- ev_df[ev_df$Eigenvector < avg_ev, ]
+
+# major and minor roles
+maj_min <- ev_df[ev_df$Eigenvector >= avg_ev, ]
+
+# find the biggest gap between major and minor nodes
+gaps <- abs(diff(maj_min$Eigenvector))
+max_gap <- which.max(gaps)
+
+# classify the characters
+maj_min$Role <- "Minor"
+maj_min$Role[1:max_gap] <- "Major"
+extra_role$Role <- "Extra"
+
+# combine all the characters into a single df
+role_df <- rbind(maj_min, extra_role)
+role_df$Role <- factor(role_df$Role, levels = c("Major", "Minor", "Extra"))
+role_df$Name <- factor(role_df$Name, levels = role_df$Name)
+
+png("Fig7(c).png", width = 6.85, height = 6, units = "in", res = 1200, family = "Helvetica")
+
+# plot the classification of roles
+ggplot(role_df, aes(x = Name, y = Eigenvector, color = Role, shape = Role, group = 1)) +
+  geom_line(size = 1) +  # line connecting the points
+  geom_point(size = 3) +  # dots of each character
+  geom_hline(yintercept = avg_ev, linetype = "dotted", color = "darkgrey", size = 1) +  # average ev centrality line
+  geom_vline(xintercept = max_gap + 0.5, linetype = "dotted", color = "darkgrey", size = 1) +  # largest gap line
+  annotate("text", x = length(role_df$Name)/2 + 5, y = avg_ev + 0.03, label = "Average Eigenvector", color = "black", size = 4.2) +  # label for avg ev
+  annotate("text", x = max_gap + 0.9, y = max(role_df$Eigenvector) - 0.5, label = "Largest Gap", color = "black", size = 4.2, angle = 270) +  # label for largest gap
+  scale_color_manual(values = c("green", "blue", "red")) +  # colours for Major, Minor, Extra
+  scale_shape_manual(values = c(16, 17, 15)) +
+  theme_minimal(base_family = "Helvetica") +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, size = 12),
+        axis.text.y = element_text(size = 12),
+        axis.title.x = element_text(size = 12),
+        axis.title.y = element_text(size = 12), 
+        panel.grid = element_blank(),
+        panel.border = element_blank(),
+        axis.line = element_line(color = "black"),
+        legend.title = element_text(size = 12),
+        legend.text = element_text(size = 12)) +
+  labs(x = "Series Characters",
+       y = "Eigenvector Centrality",
+       color = "Role",
+       shape = "Role")
+
+dev.off()
+```
+
+### Role Classification (Betweenness)
+
+```{r major, minor, extra roles - betweenness}
+
+# put the character names and their betweenness values in a dataframe
+btwn_names <- names(btwn_sorted)
+names(btwn_sorted) <- NULL
+btwn_df <- data.frame(Name = btwn_names, Betweenness = btwn_sorted)
+
+# compute the average betweenness
+avg_btwn <- mean(btwn_df$Betweenness)
+
+# extras are those who have a btwn value less than the average btwn
+extra_role <- btwn_df[btwn_df$Betweenness < avg_btwn, ]
+
+# major and minor roles
+maj_min <- btwn_df[btwn_df$Betweenness >= avg_btwn, ]
+
+# find the biggest gap between major and minor nodes
+gaps <- abs(diff(maj_min$Betweenness))
+max_gap <- which.max(gaps)
+
+# classify the characters
+maj_min$Role <- "Minor"
+maj_min$Role[1:max_gap] <- "Major"
+extra_role$Role <- "Extra"
+
+# combine all the characters into a single df
+role_df <- rbind(maj_min, extra_role)
+role_df$Role <- factor(role_df$Role, levels = c("Major", "Minor", "Extra"))
+role_df$Name <- factor(role_df$Name, levels = role_df$Name)
+
+png("Fig7(e).png", width = 6.85, height = 6, units = "in", res = 1200, family = "Helvetica")
+
+# plot the classification of roles
+ggplot(role_df, aes(x = Name, y = Betweenness, color = Role, shape = Role, group = 1)) +
+  geom_line(size = 1) +  # line connecting the points
+  geom_point(size = 3) +  # dots of each character
+  geom_hline(yintercept = avg_btwn, linetype = "dotted", color = "darkgrey", size = 1) +  # average btwn centrality line
+  geom_vline(xintercept = max_gap + 0.5, linetype = "dotted", color = "darkgrey", size = 1) +  # largest gap line
+  annotate("text", x = length(role_df$Name)/2 - 0.5, y = avg_btwn + 0.6, label = "Average Betweenness", color = "black", size = 4.2) +  # label for avg btwn
+  annotate("text", x = max_gap + 0.9, y = max(role_df$Betweenness) - 5, label = "Largest Gap", color = "black", size = 4.2, angle = 270) +  # label for largest gap
+  scale_color_manual(values = c("green", "blue", "red")) +  # colours for Major, Minor, Extra
+  scale_shape_manual(values = c(16, 17, 15)) +
+  theme_minimal(base_family = "Helvetica") +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, size = 12),
+        axis.text.y = element_text(size = 12),
+        axis.title.x = element_text(size = 12),
+        axis.title.y = element_text(size = 12), 
+        panel.grid = element_blank(),
+        panel.border = element_blank(),
+        axis.line = element_line(color = "black"),
+        legend.title = element_text(size = 12),
+        legend.text = element_text(size = 12)) +
+  labs(x = "Series Characters",
+       y = "Betweenness Centrality",
+       color = "Role",
+       shape = "Role") 
+
+dev.off()
+```
+
+### Role Classification (Closeness)
+
+```{r major, minor, extra roles - closeness}
+
+# put the character names and their closeness values in a dataframe
+closeness_names <- names(closeness_sorted)
+names(closeness_sorted) <- NULL
+closeness_df <- data.frame(Name = closeness_names, Closeness = closeness_sorted)
+
+# compute the average closeness
+avg_closeness <- mean(closeness_df$Closeness)
+
+# extras are those who have a closeness value less than the average closeness
+extra_role <- closeness_df[closeness_df$Closeness < avg_closeness, ]
+
+# major and minor roles
+maj_min <- closeness_df[closeness_df$Closeness >= avg_closeness, ]
+
+# find the biggest gap between major and minor nodes
+gaps <- abs(diff(maj_min$Closeness))
+max_gap <- which.max(gaps)
+
+# classify the characters
+maj_min$Role <- "Minor"
+maj_min$Role[1:max_gap] <- "Major"
+extra_role$Role <- "Extra"
+
+# combine all the characters into a single df
+role_df <- rbind(maj_min, extra_role)
+role_df$Role <- factor(role_df$Role, levels = c("Major", "Minor", "Extra"))
+role_df$Name <- factor(role_df$Name, levels = role_df$Name)
+
+png("Fig7(g).png", width = 6.85, height = 6, units = "in", res = 1200, family = "Helvetica")
+
+# plot the classification of roles
+ggplot(role_df, aes(x = Name, y = Closeness, color = Role, shape = Role, group = 1)) +
+  geom_line(size = 1) +  # line connecting the points
+  geom_point(size = 3) +  # dots of each character
+  geom_hline(yintercept = avg_closeness, linetype = "dotted", color = "darkgrey", size = 1) + # avg closeness centrality line
+  geom_vline(xintercept = max_gap + 0.5, linetype = "dotted", color = "darkgrey", size = 1) +  # largest gap line
+  annotate("text", x = length(role_df$Name)/2 + 4.3, y = avg_closeness + 0.002, label = "Average Closeness", color = "black", size = 4.2) +  # label for avg closeness
+  annotate("text", x = max_gap + 1.35, y = max(role_df$Closeness) + 0.0035, label = "Largest \nGap", color = "black", size = 4.2, angle = 270) +  # label for largest gap
+  scale_color_manual(values = c("green", "blue", "red")) +  # colours for Major, Minor, Extra
+  scale_shape_manual(values = c(16, 17, 15)) +
+  scale_y_continuous(limits = c(0.03, 0.08)) +
+  theme_minimal(base_family = "Helvetica") +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, size = 12),
+        axis.text.y = element_text(size = 12),
+        axis.title.x = element_text(size = 12),
+        axis.title.y = element_text(size = 12), 
+        panel.grid = element_blank(),
+        panel.border = element_blank(),
+        axis.line = element_line(color = "black"),
+        legend.title = element_text(size = 12),
+        legend.text = element_text(size = 12)) +
+  labs(x = "Series Characters",
+       y = "Closeness Centrality",
+       color = "Role",
+       shape = "Role") 
+
+dev.off()
+```
+
+### Correlation Analysis Between Ordinal Roles / Weighted DC and Unweighted DC, EC, BC, CC
+
+```{r spearman and kendall}
+# spearman and kendall tau correlations to compare the major/minor/extra classification roles 
+# with the other centrality measures
+
+# combine all centrality measures into one dataframe
+all_centralities <- data.frame(
+  Name = names(series_deg),
+  Degree = as.numeric(series_deg),
+  Eigenvector = as.numeric(series_eigen$vector[names(series_deg)]),
+  Betweenness = as.numeric(series_btwn[names(series_deg)]),
+  Closeness = as.numeric(series_closeness[names(series_deg)])
+)
+
+# merge role classification with all the other centralities
+combined_df <- merge(all_centralities, role_df_corr, by = "Name")
+
+combined_df <- combined_df %>%
+  rename(Degree_unw_und = Degree.x) %>%
+  rename(Degree_w_d = Degree.y)
+
+# encode roles: Major = 3, Minor = 2, Extra = 1 (Major is 3 since higher role should have higher centrality)
+combined_df$RoleNumeric <- as.numeric(recode_factor(combined_df$Role,
+                                  "Extra" = 1, "Minor" = 2, "Major" = 3))
+
+# Spearman correlations (between role and centralities)
+print(cor.test(combined_df$RoleNumeric, combined_df$Degree_unw_und, method = "spearman"))
+print(cor.test(combined_df$RoleNumeric, combined_df$Betweenness, method = "spearman"))
+print(cor.test(combined_df$RoleNumeric, combined_df$Eigenvector, method = "spearman"))
+print(cor.test(combined_df$RoleNumeric, combined_df$Closeness, method = "spearman"))
+
+# Spearman correlations (between weighted and directed degree with centralities)
+print(cor.test(combined_df$Degree_w_d, combined_df$Degree_unw_und, method = "spearman"))
+print(cor.test(combined_df$Degree_w_d, combined_df$Betweenness, method = "spearman"))
+print(cor.test(combined_df$Degree_w_d, combined_df$Eigenvector, method = "spearman"))
+print(cor.test(combined_df$Degree_w_d, combined_df$Closeness, method = "spearman"))
+
+# Kendall correlations (between role and centralities)
+print(cor.test(combined_df$RoleNumeric, combined_df$Degree_unw_und, method = "kendall"))
+print(cor.test(combined_df$RoleNumeric, combined_df$Betweenness, method = "kendall"))
+print(cor.test(combined_df$RoleNumeric, combined_df$Eigenvector, method = "kendall"))
+print(cor.test(combined_df$RoleNumeric, combined_df$Closeness, method = "kendall"))
+
+# Kendall correlations (between weighted and directed degree with centralities)
+print(cor.test(combined_df$Degree_w_d, combined_df$Degree_unw_und, method = "kendall"))
+print(cor.test(combined_df$Degree_w_d, combined_df$Betweenness, method = "kendall"))
+print(cor.test(combined_df$Degree_w_d, combined_df$Eigenvector, method = "kendall"))
+print(cor.test(combined_df$Degree_w_d, combined_df$Closeness, method = "kendall"))
+```
+
+### Null Configuration Model
+
+```{r null configuration model}
+
+real_net_deg <- degree(series_adj_undirected, gmode = "graph")
+
+set.seed(10)
+
+# number of simulations
+num_sims <- 1000  
+
+# initialise storage for the generated null model metrics
+null_degrees <- matrix(NA, nrow = vcount(series_net_undirected), ncol = num_sims)
+null_betweenness <- matrix(NA, nrow = vcount(series_net_undirected), ncol = num_sims)
+null_closeness <- matrix(NA, nrow = vcount(series_net_undirected), ncol = num_sims)
+null_eigen <- matrix(NA, nrow = vcount(series_net_undirected), ncol = num_sims)
+null_transitivity <- numeric(num_sims)
+null_avg_path_length <- numeric(num_sims)
+
+# run 1000 simulations 
+for (i in 1:num_sims) {
+    null_net <- sample_degseq(real_net_deg, method = "simple.no.multiple")
+    
+    null_degrees[, i] <- degree(as.matrix(get.adjacency(null_net)), gmode = "graph", rescale = TRUE)
+    null_eigen[, i] <- eigen_centrality(null_net)$vector
+    null_betweenness[, i] <- betweenness.estimate(null_net, directed = FALSE, cutoff = -1)
+    null_closeness[, i] <- closeness.estimate(null_net, mode = "all", cutoff = -1)
+    null_transitivity[i] <- transitivity(null_net, type = "global")
+    null_avg_path_length[i] <- mean_distance(null_net, directed = FALSE)
+}
+
+# mean and std dev
+null_degree_mean <- rowMeans(null_degrees)
+null_degree_sd <- apply(null_degrees, 1, sd)
+
+null_eigen_mean <- rowMeans(null_eigen)
+null_eigen_sd <- apply(null_eigen, 1, sd)
+
+null_betweenness_mean <- rowMeans(null_betweenness)
+null_betweenness_sd <- apply(null_betweenness, 1, sd)
+
+null_closeness_mean <- rowMeans(null_closeness)
+null_closeness_sd <- apply(null_closeness, 1, sd)
+
+null_transitivity_mean <- mean(null_transitivity)
+null_transitivity_sd <- sd(null_transitivity)
+
+null_avg_path_length_mean <- mean(null_avg_path_length)
+null_avg_path_length_sd <- sd(null_avg_path_length)
+
+# real network metrics
+real_net_degree <- degree(series_adj_undirected, gmode = "graph", rescale = TRUE)
+real_net_eigen <- eigen_centrality(series_net_undirected)$vector
+real_net_betweenness <- betweenness.estimate(series_net_undirected, directed = FALSE, cutoff = -1)
+real_net_closeness <- closeness.estimate(series_net_undirected, mode = "all", cutoff = -1)
+real_net_transitivity <- transitivity(series_net_undirected, type = "global")
+real_net_avg_path_length <- mean_distance(series_net_undirected, directed = FALSE)
+
+# create dataframe
+centrality_df <- data.frame(
+    Name = V(series_net_undirected)$name,
+    Observed_Degree = real_net_degree,
+    Null_Degree_Mean = null_degree_mean,
+    Null_Degree_SD = null_degree_sd,
+    Observed_Eigen = real_net_eigen,
+    Null_Eigen_Mean = null_eigen_mean,
+    Null_Eigen_SD = null_eigen_sd,
+    Observed_Betweenness = real_net_betweenness,
+    Null_Betweenness_Mean = null_betweenness_mean,
+    Null_Betweenness_SD = null_betweenness_sd,
+    Observed_Closeness = real_net_closeness,
+    Null_Closeness_Mean = null_closeness_mean,
+    Null_Closeness_SD = null_closeness_sd
+)
+
+# reshape the data for all centrality measures
+centrality_long <- centrality_df %>%
+    pivot_longer(cols = c(Observed_Degree, Null_Degree_Mean,
+                          Observed_Eigen, Null_Eigen_Mean,
+                          Observed_Betweenness, Null_Betweenness_Mean,
+                          Observed_Closeness, Null_Closeness_Mean),
+                 names_to = "Type", values_to = "Value") %>%
+    mutate(Centrality = case_when(
+        Type %in% c("Observed_Degree", "Null_Degree_Mean") ~ "Degree",
+        Type %in% c("Observed_Eigen", "Null_Eigen_Mean") ~ "Eigenvector",
+        Type %in% c("Observed_Betweenness", "Null_Betweenness_Mean") ~ "Betweenness",
+        Type %in% c("Observed_Closeness", "Null_Closeness_Mean") ~ "Closeness"
+    ),
+    Type = ifelse(grepl("Observed", Type), "Observed", "Null Model")) 
+
+plot_centrality <- function(df, centrality_type, null_mean_col, null_sd_col, y_label) {
+    # filter for the type of centrality measurw
+    df_filtered <- df %>% filter(Centrality == centrality_type)
+
+    # extract null model mean and standard deviation for error bars
+    null_filtered <- centrality_df %>%
+        select(Name, all_of(null_mean_col), all_of(null_sd_col)) %>%
+        rename(Null_Mean = !!sym(null_mean_col), Null_SD = !!sym(null_sd_col)) %>%
+        filter(!is.na(Null_SD))  # ensure that there are no missing values in SD
+
+    # shape is circle for observed values, and square for null model values
+    df_filtered <- df_filtered %>%
+      mutate(Shape = ifelse(Type == "Observed", 16, 15))
+    
+    ggplot() +
+        # observed and null values as points
+        geom_point(data = df_filtered, aes(x = Name, y = Value, color = Type, shape = Type), size = 3) +
+        
+        # error bars for null model (Mean ± SD)
+        geom_errorbar(data = null_filtered, aes(x = Name, 
+                                                ymin = Null_Mean - Null_SD, 
+                                                ymax = Null_Mean + Null_SD), 
+                      width = 0.3, color = "black", linewidth = 0.3) +
+      
+        
+        # set colour and shape of points
+        scale_color_manual(values = c("blue", "red")) +      
+        scale_shape_manual(values = c(16, 15)) +
+        
+        # labels and formatting
+        labs(x = "Series Characters", y = y_label, color = "Type", shape = "Type") +
+        theme_minimal(base_family = "Helvetica") +
+        theme(axis.text.x = element_text(angle = 90, hjust = 1, size = 12),
+              axis.text.y = element_text(size = 12),
+              axis.title.x = element_text(size = 12),
+              axis.title.y = element_text(size = 12),
+              panel.grid = element_blank(),
+              panel.border = element_blank(),
+              axis.line = element_line(color = "black"),
+              legend.title = element_text(size = 12),
+              legend.text = element_text(size = 12))
+}
+
+
+# function to save png
+save_null_plot <- function(df, centrality_type, null_mean_col, null_sd_col, y_label, filename) {
+  
+  # generate the plot
+  p <- plot_centrality(df, centrality_type, null_mean_col, null_sd_col, y_label)
+  
+  # save PNG
+  png(filename, width = 6.85, height = 7.5, units = "in", res = 1200, family = "Helvetica")
+  
+  print(p)
+  
+  dev.off()
+}
+
+
+# generate plots for all centrality measures and save as png
+#save_null_plot(centrality_long, "Degree", "Null_Degree_Mean", "Null_Degree_SD", "Degree Centrality", "Fig3(a).png")
+
+save_null_plot(centrality_long, "Eigenvector", "Null_Eigen_Mean", "Null_Eigen_SD", "Eigenvector Centrality", "Fig3(a).png")
+
+save_null_plot(centrality_long, "Betweenness", "Null_Betweenness_Mean", "Null_Betweenness_SD", "Betweenness Centrality", "Fig3(b).png")
+
+save_null_plot(centrality_long, "Closeness", "Null_Closeness_Mean", "Null_Closeness_SD", "Closeness Centrality", "Fig3(c).png")
+```
